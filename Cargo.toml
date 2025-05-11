@@ -1,0 +1,12 @@
+[package]
+name = "rust_registry_dev"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenv = "0.15"
+minio = { git = "https://github.com/minio/minio-rs" }
+tokio = { version = "1.0", features = ["full"] }
+log = "0.4"
+env_logger = "0.9"
+rand = "0.8"
