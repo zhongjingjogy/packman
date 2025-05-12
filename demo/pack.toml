@@ -1,0 +1,8 @@
+name = "new-pkg"
+version = "0.5.0"
+author = "dev@company.com"
+description = "数据处理器"
+includes = ["src/*", "config/"]
+excludes = ["temp/", "*.log"]
+
+[dependencies] 

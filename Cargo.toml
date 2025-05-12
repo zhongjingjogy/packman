@@ -4,9 +4,24 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+bytes = "1.0"
 dotenv = "0.15"
 minio = { git = "https://github.com/minio/minio-rs" }
 tokio = { version = "1.0", features = ["full"] }
 log = "0.4"
 env_logger = "0.9"
 rand = "0.8"
+anyhow = "1.0"
+zip = "0.6"
+walkdir = "2.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8.11"
+clap = { version = "4.0", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+rusty-s3 = "0.7.0"
+reqwest = { version = "0.12.15", features = ["json"] }
+quick-xml = { version = "0.37.5", features = ["serde"] }
+url = "2.5.4"
+semver = "1.0.22"
