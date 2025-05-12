@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "minpack")]
-#[command(about = "MinIO Package Manager", long_about = None)]
+#[command(name = "packman")]
+#[command(about = "Generic Package Manager supporting multiple languages", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,

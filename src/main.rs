@@ -1,5 +1,5 @@
 use clap::Parser;
-use rust_registry_dev::{cli, operations, Result};
+use packman::{cli, operations, Result};
 use std::path::Path;
 use tokio;
 use dotenv::dotenv;
