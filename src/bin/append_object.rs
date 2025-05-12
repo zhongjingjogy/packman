@@ -1,4 +1,4 @@
-use rust_registry_dev::common::{create_bucket_if_not_exists, create_client};
+use packman::common::{create_bucket_if_not_exists, create_client};
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use reqwest::Client;

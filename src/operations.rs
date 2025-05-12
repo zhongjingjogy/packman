@@ -1,5 +1,13 @@
 use crate::models;
 use rusty_s3::{Bucket, Credentials, S3Action, UrlStyle};
+
+// Package conflict status enum
+#[derive(Debug)]
+pub enum PackageConflictStatus {
+    NoConflict,                    // 没有冲突
+    VersionExists,                 // 完全相同的版本已存在
+    HigherVersionExists(String),   // 已存在更高版本
+}
 use std::collections::HashMap;
 use std::path::Path;
 use std::error::Error;
@@ -113,6 +121,8 @@ impl PackageManager {
                         author: String::new(), // Will be populated from metadata
                         description: String::new(), // Will be populated from metadata
                         dependencies: HashMap::new(), // Will be populated from metadata
+                        is_locked: false,
+                        lock_reason: None,
                         storage: models::Storage {
                             path: obj.key.clone(),
                             checksum: String::new(),
@@ -214,14 +224,6 @@ impl PackageManager {
         Ok(())
     }
 
-    // 检查包版本冲突的枚举
-    #[derive(Debug)]
-    pub enum PackageConflictStatus {
-        NoConflict,                    // 没有冲突
-        VersionExists,                 // 完全相同的版本已存在
-        HigherVersionExists(String),   // 已存在更高版本
-    }
-
     // 检查包是否存在以及版本冲突
     pub async fn check_package_conflict(&self, package_name: &str, version: &str) 
         -> Result<PackageConflictStatus, Box<dyn Error + Send + Sync>> {
@@ -272,8 +274,8 @@ impl PackageManager {
             let highest_version = higher_versions
                 .iter()
                 .max_by(|a, b| {
-                    let a_ver = semver::Version::parse(a).unwrap_or_default();
-                    let b_ver = semver::Version::parse(b).unwrap_or_default();
+                    let a_ver = semver::Version::parse(a).unwrap_or_else(|_| semver::Version::new(0, 0, 0));
+                    let b_ver = semver::Version::parse(b).unwrap_or_else(|_| semver::Version::new(0, 0, 0));
                     a_ver.cmp(&b_ver)
                 })
                 .unwrap();
@@ -610,7 +612,7 @@ impl PackageManager {
                 if parts.len() >= 2 {
                     let name = parts[0..parts.len()-1].join("-");
                     let ver = parts.last().unwrap_or(&"");
-                    name == package_name && ver == version
+                    name == package_name && *ver == version
                 } else {
                     false
                 }
