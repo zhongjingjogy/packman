@@ -1,4 +1,4 @@
-use packman::common::{create_bucket_if_not_exists, create_client};
+use beepkg::common::{create_bucket_if_not_exists, create_client};
 use rand::Rng;
 use rand::distributions::Alphanumeric;
 use reqwest::Client;

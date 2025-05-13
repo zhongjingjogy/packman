@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "packman")]
+#[command(name = "beepkg")]
 #[command(about = "Generic Package Manager supporting multiple languages", long_about = None)]
 pub struct Cli {
     #[command(subcommand)]

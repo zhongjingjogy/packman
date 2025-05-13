@@ -1,4 +1,4 @@
-# Packman
+# beepkg
 
 基于 MinIO 或其他兼容 S3 API 存储服务的通用包管理工具。用于存储、分享和管理各种语言的软件包。
 
@@ -17,7 +17,7 @@
 
 ```bash
 git clone <仓库URL>
-cd packman
+cd beepkg
 cargo build --release
 ```
 
@@ -46,53 +46,53 @@ MINIO_SECRET_KEY=your_secret_key
 ### 列出可用包
 
 ```bash
-cargo run --bin packman -- test --endpoint http://192.168.7.100:9005 --bucket devregistry
+cargo run --bin beepkg -- test --endpoint http://192.168.7.100:9005 --bucket devregistry
 ```
 
 例如:
 ```bash
-cargo run --bin packman -- list --endpoint http://192.168.7.100:9005 --bucket devregistry
-cargo run --bin packman -- list --endpoint play.min.io --bucket packages
+cargo run --bin beepkg -- list --endpoint http://192.168.7.100:9005 --bucket devregistry
+cargo run --bin beepkg -- list --endpoint play.min.io --bucket packages
 ```
 
 ### 推送包
 
 ```bash
-cargo run --bin packman -- push --package <包目录路径> [--key <访问密钥>] [--secret <密钥>]
+cargo run --bin beepkg -- push --package <包目录路径> [--key <访问密钥>] [--secret <密钥>]
 ```
 
 如果不提供访问密钥和密钥，工具将使用匿名访问或环境变量中的凭证。
 
 例如:
 ```bash
-cargo run --bin packman -- push --package ./my-package --key minio --secret minio123
-cargo run --bin packman -- push --package ./my-package
+cargo run --bin beepkg -- push --package ./my-package --key minio --secret minio123
+cargo run --bin beepkg -- push --package ./my-package
 ```
 
 ### 拉取包
 
 ```bash
-cargo run --bin packman -- pull <包名称@版本> [--output <输出目录>]
+cargo run --bin beepkg -- pull <包名称@版本> [--output <输出目录>]
 ```
 
 如果不指定输出目录，将拉取到当前目录下的 `package` 文件夹。
 
 例如:
 ```bash
-cargo run --bin packman -- pull my-package@1.0.0 --output ./downloaded-packages
+cargo run --bin beepkg -- pull my-package@1.0.0 --output ./downloaded-packages
 ```
 
 ### 测试连接
 
 ```bash
-cargo run --bin packman -- test [--endpoint <存储端点>] [--bucket <桶名称>] [--key <访问密钥>] [--secret <密钥>]
+cargo run --bin beepkg -- test [--endpoint <存储端点>] [--bucket <桶名称>] [--key <访问密钥>] [--secret <密钥>]
 ```
 
 如果不指定参数，工具将使用 .env 文件或环境变量中的配置。
 
 例如:
 ```bash
-cargo run --bin packman -- test --endpoint http://192.168.7.100:9005 --bucket devregistry
+cargo run --bin beepkg -- test --endpoint http://192.168.7.100:9005 --bucket devregistry
 ```
 
 ## 包格式
@@ -176,19 +176,19 @@ echo 'print("Hello, World!")' > test-package/src/main.py
 ### 上传测试包
 
 ```bash
-cargo run --bin packman -- push --package ./test-package
+cargo run --bin beepkg -- push --package ./test-package
 ```
 
 ### 下载测试包
 
 ```bash
-cargo run --bin packman -- pull test-package@0.1.0 --output ./downloaded
+cargo run --bin beepkg -- pull test-package@0.1.0 --output ./downloaded
 ```
 
 ### 测试连接
 
 ```bash
-cargo run --bin packman -- test
+cargo run --bin beepkg -- test
 ```
 
 ## 环境变量

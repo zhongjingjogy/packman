@@ -1,5 +1,5 @@
 [package]
-name = "packman"
+name = "beepkg"
 version = "0.1.0"
 edition = "2024"
 description = "A simple package management system based on s3 compatible storage."

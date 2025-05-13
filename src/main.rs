@@ -1,5 +1,5 @@
 use clap::Parser;
-use packman::{cli, operations, Result};
+use beepkg::{cli, operations, Result};
 use std::path::Path;
 use tokio;
 use dotenv::dotenv;

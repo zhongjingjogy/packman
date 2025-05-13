@@ -44,8 +44,8 @@ jobs:
     - name: Build
       run: cargo build --release --target x86_64-pc-windows-msvc
       
-    - name: Package packman.exe
+    - name: Package beepkg.exe
       uses: actions/upload-artifact@v4
       with:
-        name: packman.exe
-        path: target/x86_64-pc-windows-msvc/release/packman.exe
+        name: beepkg.exe
+        path: target/x86_64-pc-windows-msvc/release/beepkg.exe
