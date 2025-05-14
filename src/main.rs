@@ -4,7 +4,6 @@ use beepkg::{Result, cli, operations};
 use clap::Parser;
 use dotenv::dotenv;
 use std::path::Path;
-use tokio;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -52,8 +51,8 @@ async fn main() -> Result<()> {
 
             let manager = operations::PackageManager::new(
                 &endpoint,
-                &access_key.as_deref().unwrap_or(""),
-                &secret_key.as_deref().unwrap_or(""),
+                access_key.as_deref().unwrap_or(""),
+                secret_key.as_deref().unwrap_or(""),
                 &bucket,
             )?;
 
@@ -109,8 +108,8 @@ async fn main() -> Result<()> {
             // 创建 PackageManager
             let manager = operations::PackageManager::new(
                 &endpoint,
-                &access_key.as_deref().unwrap_or(""),
-                &secret_key.as_deref().unwrap_or(""),
+                access_key.as_deref().unwrap_or(""),
+                secret_key.as_deref().unwrap_or(""),
                 &bucket,
             )?;
 
