@@ -26,10 +26,10 @@ cargo build --release
 工具支持两种配置方式：命令行参数和环境变量。环境变量可以通过 `.env` 文件设置，支持以下配置项：
 
 ```
-MINIO_ENDPOINT=play.min.io
-MINIO_BUCKET=packages
-MINIO_ACCESS_KEY=your_access_key
-MINIO_SECRET_KEY=your_secret_key
+S3_ENDPOINT=play.min.io
+S3_BUCKET=packages
+S3_ACCESS_KEY=your_access_key
+S3_SECRET_KEY=your_secret_key
 ```
 
 ### 端点 URL 格式
@@ -193,10 +193,10 @@ cargo run --bin beepkg -- test
 
 ## 环境变量
 
-- `MINIO_ENDPOINT`: MinIO 服务的端点 URL (例如 `play.min.io`)
-- `MINIO_BUCKET`: 存储包的桶名称 (默认为 `packages`)
-- `MINIO_ACCESS_KEY`: 访问密钥 (如果需要认证)
-- `MINIO_SECRET_KEY`: 密钥 (如果需要认证)
+- `S3_ENDPOINT`: MinIO 服务的端点 URL (例如 `play.min.io`)
+- `S3_BUCKET`: 存储包的桶名称 (默认为 `packages`)
+- `S3_ACCESS_KEY`: 访问密钥 (如果需要认证)
+- `S3_SECRET_KEY`: 密钥 (如果需要认证)
 
 ## 开发笔记
 
@@ -204,3 +204,4 @@ cargo run --bin beepkg -- test
 - 包将被打包为 zip 文件，命名为 `<name>-<version>.zip`
 - 拉取包时会验证元数据是否与请求的包名和版本匹配
 - 支持多种语言包格式，包括但不限于 Python, JavaScript, Rust 等
+- 检查异常：`cargo clippy -- -W clippy::pedantic`

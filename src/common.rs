@@ -1,42 +1,36 @@
 use dotenv::dotenv;
-use minio::s3::creds::StaticProvider;
-use minio::s3::http::BaseUrl;
-use minio::s3::response::BucketExistsResponse;
-use minio::s3::types::S3Api;
-use minio::s3::{Client, ClientBuilder};
+use rusty_s3::{Bucket, Credentials, UrlStyle};
 use std::env;
+use url::Url;
 
 #[allow(dead_code)]
-pub fn create_client() -> Result<Client, Box<dyn std::error::Error + Send + Sync>> {
+pub fn create_client() -> Result<Bucket, Box<dyn std::error::Error + Send + Sync>> {
     dotenv().ok();
     
-    let endpoint = env::var("MINIO_ENDPOINT")?;
-    let access_key = env::var("MINIO_ACCESS_KEY")?;
-    let secret_key = env::var("MINIO_SECRET_KEY")?;
+    let endpoint = env::var("S3_ENDPOINT")?;
+    let access_key = env::var("S3_ACCESS_KEY")?;
+    let secret_key = env::var("S3_SECRET_KEY")?;
+    let bucket_name = env::var("S3_BUCKET").unwrap_or_else(|_| "default".to_string());
 
-    let base_url = endpoint.parse::<BaseUrl>()?;
-    log::info!("Connecting to MinIO at: {:?}", base_url);
-
-    let static_provider = StaticProvider::new(&access_key, &secret_key, None);
+    // 确保有http(s)://前缀
+    let base_url = if !endpoint.starts_with("http://") && !endpoint.starts_with("https://") {
+        format!("https://{}", endpoint)
+    } else {
+        endpoint.to_string()
+    };
     
-    let client = ClientBuilder::new(base_url)
-        .provider(Some(Box::new(static_provider)))
-        .build()?;
-        
-    Ok(client)
-}
-
-pub async fn create_bucket_if_not_exists(
-    bucket_name: &str,
-    client: &Client,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let resp: BucketExistsResponse = client.bucket_exists(bucket_name).send().await?;
-
-    if !resp.exists {
-        client.create_bucket(bucket_name).send().await?;
-        log::info!("Created bucket: {}", bucket_name);
-    }
-    Ok(())
+    // 删除末尾的斜杠
+    let base_url = base_url.trim_end_matches('/').to_string();
+    
+    let url = Url::parse(&base_url)?;
+    let bucket = Bucket::new(
+        url,
+        UrlStyle::Path,
+        bucket_name,
+        "us-east-1".to_string(),
+    )?;
+    
+    Ok(bucket)
 }
 
 #[allow(dead_code)]

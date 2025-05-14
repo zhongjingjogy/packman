@@ -1,5 +1,17 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncryptionConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub algorithm: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encrypted_password: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub salt: Option<String>,
+    #[serde(default)]
+    pub enabled: bool,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Project {
@@ -11,6 +23,8 @@ pub struct Project {
 pub struct Package {
     pub name: String,
     pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encryption: Option<EncryptionConfig>,
     pub author: String,
     pub description: String,
     pub dependencies: HashMap<String, String>,
@@ -39,11 +53,13 @@ pub struct PackageMetadata {
     pub includes: Vec<String>,
     pub excludes: Vec<String>,
     pub dependencies: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encryption: Option<EncryptionConfig>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PackageBackup {
-    pub original_path: String, 
+    pub original_path: String,
     pub backup_path: String,
     pub timestamp: String,
     pub reason: String,

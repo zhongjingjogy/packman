@@ -5,9 +5,12 @@ edition = "2024"
 description = "A simple package management system based on s3 compatible storage."
 
 [dependencies]
+aes-gcm = "0.10"
+argon2 = { version = "0.5", features = ["std"] }
+tempfile = "3.10"
+base64 = "0.21"
 bytes = "1.0"
 dotenv = "0.15"
-minio = { git = "https://github.com/minio/minio-rs" }
 tokio = { version = "1.0", features = ["full"] }
 log = "0.4"
 env_logger = "0.9"
