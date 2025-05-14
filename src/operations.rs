@@ -26,7 +26,7 @@ use semver;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use toml;
 use url;
@@ -203,7 +203,11 @@ impl PackageManager {
 
         // Create zip archive
         let zip_name = format!("{}-{}.zip", metadata.name, metadata.version);
-        let zip_path = std::env::temp_dir().join(&zip_name);
+        let storage_dir = std::env::var("LOCAL_STORAGE_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| std::env::temp_dir());
+        let zip_path = storage_dir.join(&zip_name);
+        println!("Using storage directory: {:?}", storage_dir);
         let file = std::fs::File::create(&zip_path)?;
         let mut zip = zip::ZipWriter::new(file);
 
@@ -372,53 +376,72 @@ impl PackageManager {
         &self,
         package_path: &Path,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // Validate package path exists
+        // Validate package path exists with debug info
+        println!("Validating package path: {:?}", package_path);
         if !package_path.exists() {
-            return Err("Package path does not exist".into());
+            return Err(format!("Package path does not exist: {:?}", package_path).into());
         }
 
         // 先尝试读取pack.toml，如果不存在再尝试pack.json
         let toml_path = package_path.join("pack.toml");
         let json_path = package_path.join("pack.json");
+        println!("Checking for metadata files at: {:?} and {:?}", toml_path, json_path);
 
         let metadata: models::PackageMetadata = if toml_path.exists() {
-            // 读取TOML格式
+            println!("Found pack.toml at {:?}", toml_path);
             let toml_content = std::fs::read_to_string(&toml_path)?;
             toml::from_str(&toml_content)?
         } else if json_path.exists() {
-            // 读取JSON格式
+            println!("Found pack.json at {:?}", json_path);
             let json_content = std::fs::read_to_string(&json_path)?;
             serde_json::from_str(&json_content)?
         } else {
-            return Err("Neither pack.toml nor pack.json found in package directory".into());
+            return Err(format!(
+                "Neither pack.toml nor pack.json found in package directory: {:?}",
+                package_path
+            ).into());
         };
 
         // Create zip archive (不进行冲突检查)
         let zip_name = format!("{}-{}.zip", metadata.name, metadata.version);
         let zip_path = std::env::temp_dir().join(&zip_name);
+        println!("Creating zip archive at: {:?}", zip_path);
+        
         let file = std::fs::File::create(&zip_path)?;
         let mut zip = zip::ZipWriter::new(file);
 
-        // Add files to zip
+        // Add files to zip with debug info
+        println!("Adding files to zip from: {:?}", package_path);
         for entry in walkdir::WalkDir::new(package_path) {
             let entry = entry?;
             if entry.file_type().is_file() {
                 let path = entry.path();
+                println!("Adding file to zip: {:?}", path);
                 let relative_path = path.strip_prefix(package_path)?;
                 zip.start_file(relative_path.to_string_lossy(), Default::default())?;
-                std::io::copy(&mut std::fs::File::open(path)?, &mut zip)?;
+                let bytes_copied = std::io::copy(&mut std::fs::File::open(path)?, &mut zip)?;
+                println!("Copied {} bytes for file: {:?}", bytes_copied, path);
             }
         }
         zip.finish()?;
+        println!("Finished creating zip archive");
 
-        // Read zip file content
+        // Read zip file content and calculate checksum
+        println!("Reading zip file content from: {:?}", zip_path);
         let file_content = std::fs::read(&zip_path)?;
+        let mut hasher = Sha1::new();
+        hasher.update(&file_content);
+        let checksum = format!("{:x}", hasher.finalize());
+        println!("Calculated checksum for zip: {}", checksum);
 
         // 创建 PUT 对象操作
         let action = self.bucket.put_object(self.credentials.as_ref(), &zip_name);
         let url = action.sign(Duration::from_secs(3600));
 
         // 上传对象
+        println!("Uploading package to: {}", url);
+        println!("Package size: {} bytes", file_content.len());
+        
         let response = self
             .client
             .put(url)
@@ -428,7 +451,30 @@ impl PackageManager {
             .await?;
 
         if !response.status().is_success() {
-            return Err(format!("Failed to upload object: {}", response.status()).into());
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            println!("Upload failed with status: {}, body: {}", status, body);
+            return Err(format!("Failed to upload object: {}", status).into());
+        }
+        println!("Upload successful");
+
+        // Upload checksum file
+        let checksum_name = format!("{}.sha1", zip_name);
+        let action = self
+            .bucket
+            .put_object(self.credentials.as_ref(), &checksum_name);
+        let url = action.sign(Duration::from_secs(3600));
+
+        let response = self
+            .client
+            .put(url)
+            .header("Content-Type", "text/plain")
+            .body(checksum.clone())
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            return Err(format!("Failed to upload checksum file: {}", response.status()).into());
         }
 
         // Clean up temp file
@@ -458,9 +504,11 @@ impl PackageManager {
         let zip_path = temp_dir.join(&zip_name);
         let _checksum_path = temp_dir.join(&checksum_name);
 
-        // Download package file
+        // Download package file with debug info
+        println!("Downloading package {}@{}", name, version);
         let action = self.bucket.get_object(self.credentials.as_ref(), &zip_name);
         let url = action.sign(Duration::from_secs(3600));
+        println!("Download URL: {}", url);
 
         let response = self.client.get(url).send().await?;
         if !response.status().is_success() {
@@ -468,9 +516,12 @@ impl PackageManager {
         }
 
         let bytes = response.bytes().await?;
+        println!("Downloaded {} bytes", bytes.len());
         std::fs::write(&zip_path, &bytes)?;
+        println!("Saved package to: {:?}", zip_path);
 
         // Download checksum file
+        println!("Downloading checksum file");
         let action = self
             .bucket
             .get_object(self.credentials.as_ref(), &checksum_name);
@@ -478,25 +529,35 @@ impl PackageManager {
 
         let response = self.client.get(url).send().await;
         let expected_checksum = match response {
-            Ok(resp) if resp.status().is_success() => resp.text().await?,
-            _ => return Err(PackageError::MissingChecksum.into()),
+            Ok(resp) if resp.status().is_success() => {
+                let checksum = resp.text().await?;
+                println!("Expected checksum: {}", checksum);
+                checksum
+            },
+            _ => {
+                println!("Failed to download checksum file");
+                return Err(PackageError::MissingChecksum.into())
+            },
         };
 
         // Verify checksum
+        println!("Calculating actual checksum...");
         let mut hasher = Sha1::new();
         hasher.update(&bytes);
         let actual_checksum = format!("{:x}", hasher.finalize());
+        println!("Actual checksum: {}", actual_checksum);
 
         if actual_checksum != expected_checksum {
-            return Err(PackageError::ChecksumMismatch(format!(
-                "Package {}@{}: expected {}, got {}",
-                name, version, expected_checksum, actual_checksum
-            ))
-            .into());
+            let err_msg = format!(
+                "Package {}@{} checksum mismatch:\nExpected: {}\nActual: {}\nBytes length: {}",
+                name, version, expected_checksum, actual_checksum, bytes.len()
+            );
+            println!("{}", err_msg);
+            return Err(PackageError::ChecksumMismatch(err_msg).into());
         }
 
         // Extract package if checksum matches
-        let file = std::fs::File::open(&zip_path)?;
+        let _file = std::fs::File::open(&zip_path)?;
         let content = std::fs::read(&zip_path)?;
 
         // Check if decryption is needed

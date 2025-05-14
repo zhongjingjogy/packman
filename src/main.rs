@@ -239,7 +239,7 @@ async fn main() -> Result<()> {
                 }
 
                 // 生成加密密码
-                let security = SecurityManager::new();
+                let _security = SecurityManager::new();
                 let test_data = b"test";
                 let (encrypted_password, salt) = SecurityManager::encrypt_data(test_data)?;
 

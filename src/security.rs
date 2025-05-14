@@ -82,7 +82,7 @@ impl SecurityManager {
         // 使用盐值派生密钥
         let argon2 = Argon2::default();
         let salt =
-            SaltString::new(salt).map_err(|e| SecurityError::DecryptionFailed(e.to_string()))?;
+            SaltString::from_b64(salt).map_err(|e| SecurityError::DecryptionFailed(e.to_string()))?;
 
         let key = argon2
             .hash_password(password.as_bytes(), &salt)
