@@ -24,6 +24,7 @@ pub struct Package {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Storage {
     pub path: String,
+    #[serde(default)]
     pub checksum: String,
     pub size: u64,
     pub created_at: String,
@@ -63,5 +64,7 @@ pub struct LockedPackage {
     pub version: String,
     pub lock_reason: String,
     pub locked_at: String,
-    pub locked_by: String, 
+    pub locked_by: String,
+    #[serde(default)]
+    pub checksum: String,
 }

@@ -1,5 +1,15 @@
 use crate::models;
 use rusty_s3::{Bucket, Credentials, S3Action, UrlStyle};
+use sha1::{Sha1, Digest};
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum PackageError {
+    #[error("Checksum verification failed: {0}")]
+    ChecksumMismatch(String),
+    #[error("Missing checksum file")]
+    MissingChecksum,
+}
 
 // Package conflict status enum
 #[derive(Debug)]
@@ -196,17 +206,19 @@ impl PackageManager {
         }
         zip.finish()?;
 
-        // Read zip file content
+        // Read zip file content and calculate sha1 hash
         let file_content = std::fs::read(&zip_path)?;
-        
-        // 创建 PUT 对象操作
+        let mut hasher = Sha1::new();
+        hasher.update(&file_content);
+        let checksum = format!("{:x}", hasher.finalize());
+
+        // Upload package file
         let action = self.bucket.put_object(
             self.credentials.as_ref(),
             &zip_name
         );
         let url = action.sign(Duration::from_secs(3600));
         
-        // 上传对象
         let response = self.client
             .put(url)
             .header("Content-Type", "application/zip")
@@ -218,8 +230,36 @@ impl PackageManager {
             return Err(format!("Failed to upload object: {}", response.status()).into());
         }
 
+        // Upload checksum file
+        let checksum_name = format!("{}.sha1", zip_name);
+        let action = self.bucket.put_object(
+            self.credentials.as_ref(),
+            &checksum_name
+        );
+        let url = action.sign(Duration::from_secs(3600));
+        
+        let response = self.client
+            .put(url)
+            .header("Content-Type", "text/plain")
+            .body(checksum.clone())
+            .send()
+            .await?;
+            
+        if !response.status().is_success() {
+            return Err(format!("Failed to upload checksum file: {}", response.status()).into());
+        }
+
         // Clean up temp file
         std::fs::remove_file(zip_path)?;
+
+        // Update package checksum in registry metadata
+        let mut registry_meta = self.get_registry_metadata().await?;
+        if let Some(pkg) = registry_meta.locked_packages.iter_mut().find(|p| 
+            p.name == metadata.name && p.version == metadata.version
+        ) {
+            pkg.checksum = checksum;
+        }
+        self.save_registry_metadata(&registry_meta).await?;
 
         Ok(())
     }
@@ -371,27 +411,55 @@ impl PackageManager {
         let temp_dir = std::env::temp_dir().join(format!("{}-{}", name, version));
         std::fs::create_dir_all(&temp_dir)?;
 
-        // Download package
+        // Download package and checksum
         let zip_name = format!("{}-{}.zip", name, version);
+        let checksum_name = format!("{}.sha1", zip_name);
         let zip_path = temp_dir.join(&zip_name);
+        let _checksum_path = temp_dir.join(&checksum_name);
         
-        // 创建 GET 对象操作
+        // Download package file
         let action = self.bucket.get_object(
             self.credentials.as_ref(),
             &zip_name
         );
         let url = action.sign(Duration::from_secs(3600));
         
-        // 下载对象
         let response = self.client.get(url).send().await?;
         if !response.status().is_success() {
-            return Err(format!("Failed to download object: {}", response.status()).into());
+            return Err(format!("Failed to download package: {}", response.status()).into());
         }
         
         let bytes = response.bytes().await?;
-        std::fs::write(&zip_path, bytes)?;
+        std::fs::write(&zip_path, &bytes)?;
 
-        // Extract package
+        // Download checksum file
+        let action = self.bucket.get_object(
+            self.credentials.as_ref(),
+            &checksum_name
+        );
+        let url = action.sign(Duration::from_secs(3600));
+        
+        let response = self.client.get(url).send().await;
+        let expected_checksum = match response {
+            Ok(resp) if resp.status().is_success() => {
+                resp.text().await?
+            },
+            _ => return Err(PackageError::MissingChecksum.into()),
+        };
+
+        // Verify checksum
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let actual_checksum = format!("{:x}", hasher.finalize());
+
+        if actual_checksum != expected_checksum {
+            return Err(PackageError::ChecksumMismatch(format!(
+                "Package {}@{}: expected {}, got {}",
+                name, version, expected_checksum, actual_checksum
+            )).into());
+        }
+
+        // Extract package if checksum matches
         let file = std::fs::File::open(&zip_path)?;
         let mut archive = zip::ZipArchive::new(file)?;
         archive.extract(output_dir)?;
@@ -475,12 +543,19 @@ impl PackageManager {
         
         // 添加锁定信息
         let now = chrono::Utc::now().to_rfc3339();
+        // Get package checksum if available
+        let package = packages.iter().find(|p| 
+            p.name == package_name && p.version == version
+        );
+        let checksum = package.map_or("".to_string(), |p| p.storage.checksum.clone());
+
         metadata.locked_packages.push(models::LockedPackage {
             name: package_name.to_string(),
             version: version.to_string(),
             lock_reason: reason.to_string(),
             locked_at: now.clone(),
             locked_by: user.to_string(),
+            checksum,
         });
         
         metadata.last_updated = now;
